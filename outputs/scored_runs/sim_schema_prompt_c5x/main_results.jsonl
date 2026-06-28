@@ -1,0 +1,1 @@
+{"asr":0.0,"asr_ci":[0.0,0.13319649395317873],"atr":0.0,"atr_ratio":0.0,"benign_n":25,"blocked":25,"bsr":1.0,"bsr_ci":[0.8668035060468213,1.0],"cnas":0.0,"condition":"c5x_tracegate_extractive_naive","injected_n":25,"model":"sim-vulnerable","pdr":0.0,"runs":50}

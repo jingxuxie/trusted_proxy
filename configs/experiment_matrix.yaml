@@ -1,0 +1,34 @@
+conditions:
+  c0_single_direct:
+    topology: single_direct
+    defense: none
+  c1_2agent_naive:
+    topology: reader_executor
+    defense: naive
+  c2_3agent_naive:
+    topology: reader_planner_executor
+    defense: naive
+  c2x_3agent_extractive_naive:
+    topology: reader_planner_executor
+    defense: extractive_naive
+  c2o_3agent_oracle_laundered:
+    topology: reader_planner_executor
+    defense: oracle_laundered
+  c3_source_preserving:
+    topology: reader_planner_executor
+    defense: source_preserving
+  c4_capability_scoped:
+    topology: reader_planner_executor
+    defense: capability_scoped
+  c5_tracegate:
+    topology: reader_planner_executor
+    defense: naive
+    runtime_monitor: tracegate
+  c5x_tracegate_extractive_naive:
+    topology: reader_planner_executor
+    defense: extractive_naive
+    runtime_monitor: tracegate
+  c5o_tracegate_oracle_laundered:
+    topology: reader_planner_executor
+    defense: oracle_laundered
+    runtime_monitor: tracegate

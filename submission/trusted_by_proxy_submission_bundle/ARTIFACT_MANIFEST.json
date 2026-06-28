@@ -1,0 +1,226 @@
+{
+  "files": [
+    {
+      "bytes": 5691,
+      "path": "README.md",
+      "sha256": "0f2308537f8b8ae4fc95386b6b6d93923b2a9f73039e3f973e265de2d44214d6"
+    },
+    {
+      "bytes": 45848,
+      "path": "trusted_by_proxy_research_plan.md",
+      "sha256": "340cb054605d9a8e50e6929c3720b0245ba66fe41b91ae5e2bffe4866b513d71"
+    },
+    {
+      "bytes": 206200,
+      "path": "slambench/tasks/subtle_multidomain_50pairs_v2.jsonl",
+      "records": 100,
+      "sha256": "01d0d04eba3f81dcea5ad24e6a3f913696fb889d504345061432715ce21381b6"
+    },
+    {
+      "bytes": 687426,
+      "path": "outputs/raw_logs/openai_schema_prompt_50pairs_gpt54nano_c0.jsonl",
+      "records": 100,
+      "sha256": "563977b702a09d0324672511aecfe19a41c4ca4ba5a68af3a382c4eb0628705d"
+    },
+    {
+      "bytes": 1597138,
+      "path": "outputs/raw_logs/openai_schema_prompt_50pairs_gpt54nano_c2x.jsonl",
+      "records": 100,
+      "sha256": "804368812428973d7dc1bab2d7b6b4ee4224839034b1476f20dc61291a6b4fab"
+    },
+    {
+      "bytes": 1583252,
+      "path": "outputs/raw_logs/openai_schema_prompt_50pairs_gpt54nano_c5x.jsonl",
+      "records": 100,
+      "sha256": "6b867141016ccd22acb2216bf08b354aba102c01aa9e88e03c3fc038711f0e5d"
+    },
+    {
+      "bytes": 3909960,
+      "path": "outputs/replayed_logs/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned.jsonl",
+      "records": 300,
+      "sha256": "b0d2b9759dee1f0477e28dffda52fec2bd90789b6ec2cd2e63750c9c35ff07da"
+    },
+    {
+      "bytes": 129424,
+      "path": "outputs/scored_runs/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/scored_runs.jsonl",
+      "records": 300,
+      "sha256": "60e41d5484ad25f52806d4ff713fa28f82e075b4745c10d3a12e5e75b0056115"
+    },
+    {
+      "bytes": 1063,
+      "path": "outputs/scored_runs/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/main_results.jsonl",
+      "records": 3,
+      "sha256": "39d3b1febed600125471297a919e45273b616f5c0a63fc23059ba153f87cdad1"
+    },
+    {
+      "bytes": 553,
+      "path": "paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/main_results.md",
+      "sha256": "4bfbf9e30bf58ad92c66f73b2ba90afe708cc946e16dcf657d0c7a82c06ffd9b"
+    },
+    {
+      "bytes": 1082,
+      "path": "paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/payload_results.md",
+      "sha256": "684fd4ff45fd97e3680fbdf20830a1d4153b624b92e66e4ca654e8dcd12b2949"
+    },
+    {
+      "bytes": 234,
+      "path": "paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/bootstrap_notes.md",
+      "sha256": "61fe28a9ba94ddbf577ec15ba256835124798f2d0622850e9c1183111598104b"
+    },
+    {
+      "bytes": 263,
+      "path": "paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/attack_reason_results.md",
+      "sha256": "a1d6e986645930c20a266298190e4601928f45e0e9746d8b2e66bc6517520a89"
+    },
+    {
+      "bytes": 9110,
+      "path": "paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/trace_examples.md",
+      "sha256": "0658c6163e695a7a4f1f9543d3582f6fbb5aff1f2a2ae90173d5dd0f935d0e5d"
+    },
+    {
+      "bytes": 15706,
+      "path": "paper/main.tex",
+      "sha256": "e5e703bf0cd6eddb975fe72e78be663373c994866a23b0dc797f4fae57bd3b5a"
+    },
+    {
+      "bytes": 107666,
+      "pages": 5,
+      "path": "paper/main.pdf",
+      "sha256": "f8ec39d4b090f24d13bdc95037e7688a138a3784fdde076fe0a0e8e4639eb2be"
+    },
+    {
+      "bytes": 5124,
+      "path": "paper/supplement.tex",
+      "sha256": "6fde9c776b07b891f8fea53b3dfc5886bba89c6945f686345be3a177b8552059"
+    },
+    {
+      "bytes": 74670,
+      "pages": 2,
+      "path": "paper/supplement.pdf",
+      "sha256": "0b0e270ef2270774a6809eedf00f65219cc544a8a5ffaa07ba5737f79b2546ea"
+    },
+    {
+      "bytes": 7727,
+      "path": "paper/colm2026_conference.sty",
+      "sha256": "55962ae80c25a50335825c85d23eb5f1cd9015aa8e77f7af32b483b646c7483e"
+    },
+    {
+      "bytes": 26973,
+      "path": "paper/colm2026_conference.bst",
+      "sha256": "2d67552db7ed38ccfccb5957b52f95656e25c249724761d3cf5f7922ad1844c5"
+    },
+    {
+      "bytes": 20521,
+      "path": "paper/fancyhdr.sty",
+      "sha256": "b56ec4434b9f4607529a4b23dc68ad8d4b94f1f631c8cddaf7da78140d53a5ea"
+    },
+    {
+      "bytes": 45154,
+      "path": "paper/natbib.sty",
+      "sha256": "88bc70c0e48461934cab5b2accef06b74a8b3ac45ad03ccd3f2a6b7e0d6d530d"
+    },
+    {
+      "bytes": 12284,
+      "path": "paper/math_commands.tex",
+      "sha256": "90473c4d0542070db244cea73ef962d6cddc5b2a746757e6a40ddf5fdfb90ba9"
+    },
+    {
+      "bytes": 986,
+      "path": "paper/TEMPLATE_PROVENANCE.md",
+      "sha256": "ff6b2ab990321aaf278e544cfe9edaf2701ca1c5e775d98ba6be4abad999d8c6"
+    },
+    {
+      "bytes": 1816,
+      "path": "paper/refs.bib",
+      "sha256": "308af78f3116ed775bb451252f4cbb3119dad1617a8d4c17d55569f9ac3f456b"
+    },
+    {
+      "bytes": 8929,
+      "path": "paper/RESULTS_SUMMARY.md",
+      "sha256": "4309710f149d4d2200553b98491a02177fb9f48f5322e81ef8919cd45d6cf946"
+    },
+    {
+      "bytes": 3809,
+      "path": "paper/CLAIM_CHECKLIST.md",
+      "sha256": "e90e79e48291dfda19450a9c0e9fe828ceba248f71192d998e1843d767cf3a78"
+    },
+    {
+      "bytes": 5484,
+      "path": "paper/SUBMISSION_CHECKLIST.md",
+      "sha256": "470d4b49096d1d5b5bd8dc1522e71fb6b8885a885cad52fe7667c20957a06245"
+    },
+    {
+      "bytes": 4853,
+      "path": "paper/COMPLETION_AUDIT.md",
+      "sha256": "6fa0133a4029abe94ef6ba92bcacf25c61f328b8c677490042f16745d7a192a5"
+    },
+    {
+      "bytes": 12159,
+      "path": "scripts/check_paper_artifacts.py",
+      "sha256": "401802391e8989495439bc94331a3ad84343d14b5546539aa5d38e9e731e2573"
+    },
+    {
+      "bytes": 6073,
+      "path": "scripts/make_artifact_manifest.py",
+      "sha256": "3cd5ebdde7c1fecef2dd1135a051186aa4f256075c8f144fc6a85f9e9d60de83"
+    },
+    {
+      "bytes": 3749,
+      "path": "scripts/make_submission_bundle.py",
+      "sha256": "b5ab90e9bef0c6e6ca46de069a2f094064c7b9aae22220c766c62b909783109b"
+    },
+    {
+      "bytes": 10626,
+      "path": "src/scoring.py",
+      "sha256": "bf0bb2c94f209463f9953c3510b5dd550699d3e43c63d000c7077d86bb168af5"
+    },
+    {
+      "bytes": 3576,
+      "path": "tests/test_scoring.py",
+      "sha256": "7ff3f2326ed3f34ea45960228c41ada62dcde6ce73d2c1b2f942f34931db5077"
+    }
+  ],
+  "main_conditions": [
+    "c0_single_direct",
+    "c2x_3agent_extractive_naive",
+    "c5x_tracegate_extractive_naive"
+  ],
+  "main_metrics": [
+    {
+      "asr": 0.06,
+      "atr": 0.0,
+      "blocked": 0,
+      "bsr": 0.6,
+      "cnas": 0.1,
+      "condition": "c0_single_direct",
+      "iusr": 0.54,
+      "pdr": 0.0,
+      "runs": 100
+    },
+    {
+      "asr": 0.22,
+      "atr": 0.16,
+      "blocked": 0,
+      "bsr": 0.7,
+      "cnas": 0.31428571428571433,
+      "condition": "c2x_3agent_extractive_naive",
+      "iusr": 0.5,
+      "pdr": 0.77,
+      "runs": 100
+    },
+    {
+      "asr": 0.0,
+      "atr": -0.06,
+      "blocked": 11,
+      "bsr": 0.66,
+      "cnas": 0.0,
+      "condition": "c5x_tracegate_extractive_naive",
+      "iusr": 0.64,
+      "pdr": 0.69,
+      "runs": 100
+    }
+  ],
+  "main_model": "gpt-5.4-nano",
+  "main_task_set": "slambench/tasks/subtle_multidomain_50pairs_v2.jsonl",
+  "name": "Trusted by Proxy paper artifact manifest"
+}

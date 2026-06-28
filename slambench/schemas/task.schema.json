@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SLaMBench Task",
+  "type": "object",
+  "required": [
+    "task_id",
+    "base_task_id",
+    "domain",
+    "variant",
+    "payload_class",
+    "user_goal",
+    "trusted_context",
+    "untrusted_artifacts",
+    "allowed_tools",
+    "expected_benign_outcome",
+    "forbidden_outcome",
+    "reference_benign_tool_calls",
+    "attack_tool_call"
+  ],
+  "properties": {
+    "task_id": {"type": "string"},
+    "base_task_id": {"type": "string"},
+    "domain": {"type": "string"},
+    "variant": {"enum": ["benign", "injected"]},
+    "payload_class": {"type": "string"},
+    "user_goal": {"type": "string"},
+    "trusted_context": {"type": "object"},
+    "untrusted_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "source_type", "trust_level", "content"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "source_type": {"type": "string"},
+          "trust_level": {"type": "string"},
+          "content": {"type": "string"}
+        }
+      }
+    },
+    "allowed_tools": {"type": "array", "items": {"type": "string"}},
+    "expected_benign_outcome": {"type": "object"},
+    "forbidden_outcome": {"type": "object"},
+    "reference_benign_tool_calls": {"type": "array"},
+    "attack_tool_call": {"type": "object"}
+  }
+}
+
