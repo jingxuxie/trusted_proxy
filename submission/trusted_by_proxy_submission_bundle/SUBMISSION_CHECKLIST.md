@@ -10,6 +10,10 @@ Generated: 2026-06-28
 - Compiled supplement: `paper/supplement.pdf`
 - Bibliography: `paper/refs.bib`
 - Main result table: `paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/main_results.md`
+- Follow-up topology table: `paper/tables/followup_gpt54nano_25pairs_1200_topology/main_results.md`
+- Follow-up defense table: `paper/tables/followup_gpt54nano_25pairs_1200_defense/main_results.md`
+- Follow-up current-model table: `paper/tables/followup_gpt55_25pairs_1200_core/main_results.md`
+- Heterogeneous diagnostic table: `paper/tables/followup_hetero_hard6pairs_readerplanner54nano_executor55_c2x/main_results.md`
 - Artifact manifest: `paper/ARTIFACT_MANIFEST.md`, `paper/ARTIFACT_MANIFEST.json`
 - Submission bundle: `submission/trusted_by_proxy_submission_bundle.zip`
 - Template provenance: `paper/TEMPLATE_PROVENANCE.md`
@@ -28,25 +32,28 @@ Generated: 2026-06-28
 | Authority Transfer Rate reported | Done | `paper/main.tex`, Table 2 |
 | Provenance dropout measured | Done | `paper/main.tex`, Table 2; c2x PDR 77%, c5x PDR 69% |
 | Lightweight defense evaluated | Done | TraceGate result in `paper/main.tex`, Table 2 |
-| Cross-model limitation documented | Done | `paper/main.tex`, Section 8 |
+| Topology ablation documented | Done | `paper/main.tex`, Topology Ablation; `paper/tables/followup_gpt54nano_25pairs_1200_topology/RESULT_SUMMARY.md` |
+| Defense ablation documented | Done | `paper/main.tex`, Defense Ablations; `paper/tables/followup_gpt54nano_25pairs_1200_defense/RESULT_SUMMARY.md` |
+| Cross-model/current-model limitation documented | Done | `paper/main.tex`, Model Dependence |
+| Heterogeneous-agent diagnostic documented | Done | `paper/main.tex`, Model Dependence; `paper/tables/followup_hetero_hard6pairs_readerplanner54nano_executor55_c2x/RESULT_SUMMARY.md` |
 | Deterministic replay/scoring documented | Done | `paper/supplement.tex` |
 | Qualitative traces available | Done | `paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/trace_examples.md` |
 | Related work positioning | Done | `paper/main.tex`, Section 9 |
 | Formal source-laundering definition | Done | `paper/main.tex`, Section 2 |
 | Responsible release statement | Done | `paper/main.tex`, Ethics Statement |
-| Submission artifact invariants checked | Done | `scripts/check_paper_artifacts.py` |
+| Submission artifact invariants checked | Done | `scripts/check_paper_artifacts.py`; includes result metrics, manuscript numeric/caveat text, PDF page counts, reference-page boundary, bundle freshness, and release redaction |
 | Artifact hashes recorded | Done | `paper/ARTIFACT_MANIFEST.json` |
 | Anonymous upload bundle assembled | Done | `submission/trusted_by_proxy_submission_bundle.zip` |
 | Requirement-level completion audit | Done | `paper/COMPLETION_AUDIT.md` |
-| Venue template conversion | Done | `paper/main.tex` and `paper/supplement.tex` use `colm2026_conference`; style files are vendored from `/home/eston/colm_workshop/Template-2026.zip` |
-| Page-rule decision for supplement | Done | Workshop page permits supplementary material outside the 6-page limit; supplement is separate in `paper/supplement.pdf` |
+| Venue template conversion | Done | `paper/main.tex` and `paper/supplement.tex` use `colm2026_conference`; style files are vendored from the `Template-2026.zip` archive recorded in `paper/TEMPLATE_PROVENANCE.md` |
+| 6-page excluding-references page rule | Done | `paper/main.pdf` is 7 pages total; the main body and ethics statement fit within pages 1-6, and references begin on page 6. `paper/supplement.pdf` is 2 pages. |
 
 ## Venue Rules Verified
 
 - Target page: `https://advml-frontier.github.io/`
-- Template source: `/home/eston/colm_workshop/Template-2026.zip` (`sha256 24c616f7c37769db12fb2f2064b0f55a710b1503d673ba6a3cc114c54c01335e`)
-- Verified on 2026-06-28: submissions use the COLM 2026 template; workshop papers are up to 6 pages excluding references and supplementary material; deadline is June 30, 2026 AoE.
-- Current package: `paper/main.pdf` is 5 pages under the COLM submission style, and `paper/supplement.pdf` is 2 pages.
+- Template source: `Template-2026.zip` (`sha256 24c616f7c37769db12fb2f2064b0f55a710b1503d673ba6a3cc114c54c01335e`)
+- Verified on 2026-06-28 for the earlier workshop target: submissions use the COLM 2026 template; workshop papers are up to 6 pages excluding references and supplementary material; deadline is June 30, 2026 AoE.
+- Current follow-up package: `paper/main.pdf` is 7 pages total under the COLM submission style; body/ethics content fits within pages 1-6 and references begin on page 6. `paper/supplement.pdf` is 2 pages.
 
 ## Commands To Verify Before Submission
 
@@ -82,6 +89,7 @@ authority metadata, while TraceGate blocks at the tool boundary.
 ## Claims To Avoid
 
 - Do not claim source laundering universally increases attack success across all models.
+- Do not claim the heterogeneous-agent diagnostic proves a general robust composition rule.
 - Do not claim prompt-only defenses are sufficient.
 - Do not claim SLaMBench estimates production-world exploit rates.
 - Do not describe TraceGate's 11 blocks as all malicious: one block is a benign CRM memory-write false positive.

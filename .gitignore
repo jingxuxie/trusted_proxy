@@ -17,6 +17,13 @@ __pycache__/
 .idea/
 .vscode/
 
+# Local credentials and environment overrides
+.env
+.env.*
+apikey.txt
+*apikey*.txt
+*api_key*.txt
+
 # Codex-local runtime metadata
 .agents/
 .codex/

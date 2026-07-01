@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 
@@ -19,8 +20,10 @@ BUNDLE_FILES = [
     ("paper/RESULTS_SUMMARY.md", "RESULTS_SUMMARY.md"),
     ("paper/SUBMISSION_CHECKLIST.md", "SUBMISSION_CHECKLIST.md"),
     ("paper/COMPLETION_AUDIT.md", "COMPLETION_AUDIT.md"),
+    ("REPRODUCE_MAIN_RESULTS.md", "REPRODUCE_MAIN_RESULTS.md"),
     ("paper/main.tex", "latex/main.tex"),
     ("paper/supplement.tex", "latex/supplement.tex"),
+    ("paper/Makefile", "latex/Makefile"),
     ("paper/refs.bib", "latex/refs.bib"),
     ("paper/colm2026_conference.sty", "latex/colm2026_conference.sty"),
     ("paper/colm2026_conference.bst", "latex/colm2026_conference.bst"),
@@ -39,7 +42,17 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def pdf_pages(path: Path) -> int:
+    result = subprocess.run(["pdfinfo", str(path)], check=True, capture_output=True, text=True)
+    for line in result.stdout.splitlines():
+        if line.startswith("Pages:"):
+            return int(line.split(":", 1)[1].strip())
+    raise RuntimeError(f"could not read page count from {path}")
+
+
 def write_bundle_readme(bundle_dir: Path) -> None:
+    main_pages = pdf_pages(ROOT / "paper/main.pdf")
+    supplement_pages = pdf_pages(ROOT / "paper/supplement.pdf")
     lines = [
         "# Trusted by Proxy Submission Bundle",
         "",
@@ -47,12 +60,14 @@ def write_bundle_readme(bundle_dir: Path) -> None:
         "",
         "## Upload files",
         "",
-        "- `main.pdf`: main paper, 5 pages.",
-        "- `supplement.pdf`: supplementary material, 2 pages.",
+        f"- `main.pdf`: main paper, {main_pages} pages total; body/ethics fit within pages 1-6.",
+        f"- `supplement.pdf`: supplementary material, {supplement_pages} pages.",
         "",
         "## Verification",
         "",
-        "The paper-facing invariant check is:",
+        "This bundle is an upload package, not a standalone reproduction archive.",
+        "Run verification from the full repository root, where the saved logs and",
+        "Python scripts are available. The paper-facing invariant check is:",
         "",
         "```bash",
         "conda run -n trusted_proxy python scripts/check_paper_artifacts.py",
@@ -60,6 +75,8 @@ def write_bundle_readme(bundle_dir: Path) -> None:
         "",
         "The artifact manifest records hashes for the paper, supplement, source,",
         "main task set, saved raw logs, replayed logs, scored runs, and paper tables.",
+        "See `REPRODUCE_MAIN_RESULTS.md` in the repository root for the no-API",
+        "replay/scoring route.",
         "",
         "## Contents",
         "",

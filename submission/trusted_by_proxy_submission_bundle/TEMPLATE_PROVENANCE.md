@@ -2,11 +2,13 @@
 
 Generated: 2026-06-28
 
-The paper was rebased against the local template archive requested by the user.
+The paper was rebased against the COLM 2026 template archive requested by the
+user. The original host-specific absolute path is intentionally omitted from
+this release-facing provenance file.
 
 ## Source Archive
 
-- Path: `/home/eston/colm_workshop/Template-2026.zip`
+- Archive: `Template-2026.zip`
 - SHA256: `24c616f7c37769db12fb2f2064b0f55a710b1503d673ba6a3cc114c54c01335e`
 - Archive top-level directory: `Template-2026/`
 

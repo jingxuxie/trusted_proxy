@@ -37,6 +37,38 @@ audit sends and preserves injected-task utility. The high PDR values show that
 runtime monitoring blocks execution even when upstream provenance has already
 dropped out.
 
+Follow-up paper tables add additional evidence:
+
+- `paper/tables/followup_gpt54nano_25pairs_1200_topology/`: source-laundering
+  appears in provenance-losing handoffs (`c2x`, `c2o`), not in naive delegation
+  depth alone.
+- `paper/tables/followup_gpt54nano_25pairs_1200_topology_mechanism/`: no-API
+  trace audit showing that the six c2x-only attacks carry the forbidden
+  recipient through reader, planner, and executor outputs before execution.
+- `paper/tables/followup_gpt54nano_25pairs_1200_defense/`: source-preserving,
+  capability-scoped, and TraceGate-replayed defenses all reduce clean 25-pair
+  ASR to 0%. The TraceGate row is deterministic replay of saved `c2x` outputs,
+  not an independent model resampling.
+- `paper/tables/followup_gpt54nano_25pairs_1200_defense_guard/`: an LLM guard
+  replay baseline over the same saved c2x tool calls. It matches TraceGate on
+  this slice (0% ASR, 72% IUSR), but is another model-call sanitizer rather than
+  deterministic enforcement.
+- `paper/tables/followup_gpt54nano_25pairs_1200_defense_mechanism/`: no-API
+  trace audit of marker flow and TraceGate blocks on the same defense slice.
+- `paper/tables/followup_gpt54nano_repeatability_6inj_3runs/`: a post-hoc
+  six-task hard-case repeatability check; c2x re-attacks 8/18 repeated runs,
+  direct attacks 2/18, and TraceGate replay executes 0/18 forbidden sends.
+- `paper/tables/followup_gpt54nano_nonemail_3pairs/`: a tiny non-email
+  side-effect scope probe for ticket status, calendar attendee, and memory
+  policy writes. It is mixed/negative: c0 attacks once, c2x and TraceGate replay
+  execute zero forbidden non-email side effects.
+- `paper/tables/followup_gpt55_25pairs_1200_core/`: `gpt-5.5` has low ASR
+  across the 25-pair core conditions, supporting a model-dependence claim.
+- `paper/tables/followup_hetero_hard6pairs_readerplanner54nano_executor55_c2x/`:
+  a tiny hard-slice role diagnostic. All-nano c2x attacks 6/6 selected hard
+  injected tasks, while `gpt-5.4-nano` reader/planner plus a `gpt-5.5` executor
+  attacks 0/6. Treat this as model-role evidence, not a powered defense result.
+
 ## Fast start
 
 ```bash
@@ -51,6 +83,22 @@ conda run -n trusted_proxy python scripts/analyze_results.py \
   outputs/replayed_logs/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned.jsonl \
   --out-dir outputs/scored_runs/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned \
   --tables-dir paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned
+conda run -n trusted_proxy python scripts/analyze_provenance_flow.py \
+  outputs/raw_logs/followup_gpt54nano_25pairs_1200_topology_c0.jsonl \
+  outputs/raw_logs/followup_gpt54nano_25pairs_1200_topology_c1.jsonl \
+  outputs/raw_logs/followup_gpt54nano_25pairs_1200_topology_c2.jsonl \
+  outputs/raw_logs/followup_gpt54nano_25pairs_1200_topology_c2x.jsonl \
+  outputs/raw_logs/followup_gpt54nano_25pairs_1200_topology_c2o.jsonl \
+  --out-dir outputs/analysis/followup_gpt54nano_25pairs_1200_topology_mechanism \
+  --tables-dir paper/tables/followup_gpt54nano_25pairs_1200_topology_mechanism
+conda run -n trusted_proxy python scripts/analyze_provenance_flow.py \
+  outputs/raw_logs/followup_gpt54nano_25pairs_1200_topology_c0.jsonl \
+  outputs/raw_logs/followup_gpt54nano_25pairs_1200_topology_c2x.jsonl \
+  outputs/raw_logs/followup_gpt54nano_25pairs_1200_defense_c3.jsonl \
+  outputs/raw_logs/followup_gpt54nano_25pairs_1200_defense_c4.jsonl \
+  outputs/replayed_logs/followup_gpt54nano_25pairs_1200_defense_c5x_replay_from_c2x.jsonl \
+  --out-dir outputs/analysis/followup_gpt54nano_25pairs_1200_defense_mechanism \
+  --tables-dir paper/tables/followup_gpt54nano_25pairs_1200_defense_mechanism
 make -C paper
 conda run -n trusted_proxy python scripts/make_artifact_manifest.py
 conda run -n trusted_proxy python scripts/make_submission_bundle.py
@@ -59,12 +107,16 @@ conda run -n trusted_proxy python scripts/check_paper_artifacts.py
 
 The replay and analysis steps are deterministic and do not call the OpenAI API.
 The unit tests include regression coverage for task-specific provenance-dropout
-markers such as `audit-log@example.test`.
+markers such as `audit-log@example.test` and structured scoring for recipients,
+calendar attendees, and ticket statuses.
 The artifact checker verifies the required files, task/run counts, main claim
-numbers, TraceGate block/pruning counts, COLM template use, main/supplement PDF
-page counts, submission-bundle freshness, and artifact manifest hashes.
+numbers, manuscript table/caveat text, TraceGate block/pruning counts, COLM
+template use, main/supplement PDF page counts, the reference-page boundary,
+submission-bundle freshness, and artifact manifest hashes.
 The requirement-level completion audit is in `paper/COMPLETION_AUDIT.md`.
 The COLM template provenance is recorded in `paper/TEMPLATE_PROVENANCE.md`.
+Step-by-step no-API reproduction instructions are in
+`REPRODUCE_MAIN_RESULTS.md`.
 
 To regenerate the corrected 50-pair task set:
 
@@ -108,15 +160,15 @@ conda run -n trusted_proxy python scripts/run_experiment.py \
   --condition c2_3agent_naive \
   --backend openai \
   --model gpt-4.1-mini \
-  --api-key-file /home/eston/colm_workshop/apikey.txt \
+  --api-key-file "$OPENAI_API_KEY_FILE" \
   --limit 5 \
   --max-output-tokens 450 \
   --out outputs/raw_logs/openai_c2_pilot.jsonl
 ```
 
-Use small `--limit` values first. The runner never passes the API key into a model
-prompt and writes each completed run as JSONL so interrupted pilots keep partial
-results.
+Use small `--limit` values first. Keep the API-key file outside the repository.
+The runner never passes the API key into a model prompt and writes each
+completed run as JSONL so interrupted pilots keep partial results.
 
 The paper results already have saved raw logs. Do not rerun broad API sweeps
 unless a specific missing table is identified.

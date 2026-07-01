@@ -6,28 +6,46 @@ Generated: 2026-06-28
 
 | Claim | Status | Evidence | Notes |
 |---|---|---|---|
-| Extractive multi-agent delegation increases unauthorized-recipient sends relative to direct exposure on the main `gpt-5.4-nano` benchmark. | Supported | `paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/main_results.md`; c0 ASR 6%, c2x ASR 22%, paired bootstrap CI [4, 26] pp. | This is the central source-laundering result. |
-| Extractive delegation frequently drops provenance before execution. | Supported | `paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/main_results.md`; c2x PDR 77%, c5x PDR 69%. | TraceGate blocks at the tool boundary; it does not repair upstream messages. |
-| The attack effect appears across multiple domains, not only workspace/email. | Supported | `outputs/scored_runs/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/scored_runs.jsonl`; c2x attacks in workspace, CRM, code review, travel, and research. | Counts: workspace 3, CRM 1, code review 3, travel 2, research 2. |
-| TraceGate eliminates observed unauthorized audit-recipient sends on the scaled benchmark. | Supported | `paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/attack_reason_results.md`; c5x has no attack-reason rows and 0 audit sends in replayed logs. | TraceGate recorded 11 sensitive-call blocks: 10 on injected variants and one benign memory-write false positive. |
-| TraceGate preserves injected-task utility better than the vulnerable c2x system on the scaled benchmark. | Supported | `paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/main_results.md`; c2x IUSR 50%, c5x IUSR 64%. | This relies on deterministic recipient pruning replay from saved model outputs. |
-| Source-preserving prompting removes observed attacks on the 25-pair `gpt-5.4-nano` benchmark but reduces utility. | Supported on 25-pair run | `paper/tables/openai_schema_prompt_v2b_gpt54nano/main_results.md`; c3 BSR 44%, ASR 0%. | Do not present as scaled 50-pair evidence unless rerun. |
-| Capability-scoped prompting is weaker than TraceGate in the current setup. | Supported on 25-pair run | `paper/tables/openai_schema_prompt_v2b_gpt54nano/main_results.md`; c4 BSR 40%, strict ASR 4%, c5x BSR 72%, ASR 0%. | c4 had no audit sends but one strict synthetic-secret identifier failure. |
+| Extractive multi-agent delegation increases unauthorized-recipient sends relative to direct exposure on the main `gpt-5.4-nano` benchmark. | Supported | `paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/main_results.md`; c0 ASR 6%, c2x ASR 22%, ATR +16 pp. | Central 50-pair source-laundering result. |
+| Extractive delegation frequently drops provenance before execution. | Supported | Main 50-pair table; c2x PDR 77%, c5x PDR 69%. | TraceGate blocks at the tool boundary; it does not repair upstream messages. |
+| The attack effect appears across multiple domains, not only workspace/email. | Supported | `outputs/scored_runs/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/scored_runs.jsonl`. | c2x attacks in workspace, CRM, code review, travel, and research. |
+| TraceGate eliminates observed unauthorized audit-recipient sends on the scaled benchmark. | Supported | Main 50-pair TraceGate row: c5x ASR 0%, 11 blocks. | Main TraceGate evidence is independently sampled at 50 pairs. |
+| Source-laundering risk is about provenance-losing composition, not delegation depth alone. | Supported | `paper/tables/followup_gpt54nano_25pairs_1200_topology/RESULT_SUMMARY.md`. | Naive c1/c2 do not increase ASR; c2x and c2o do. |
+| Differential c2x attacks are preceded by forbidden-marker propagation through the agent chain. | Supported on 25-pair trace audit | `paper/tables/followup_gpt54nano_25pairs_1200_topology_mechanism/differential_attack_cases.md`. | In all six c2x-only attack cases, the forbidden recipient appears in reader, planner, and executor outputs before execution. |
+| The c2x hard cases are recurrent under a small resampling check. | Supported as post-hoc stability check | `paper/tables/followup_gpt54nano_repeatability_6inj_3runs/RESULT_SUMMARY.md`. | c2x attacks 8/18 repeated runs across 5/6 tasks; direct attacks 2/18 on 1/6 tasks. Do not present as an unbiased rate. |
+| The harness and scorer cover structured non-email side effects. | Supported as tiny scope probe | `paper/tables/followup_gpt54nano_nonemail_3pairs/RESULT_SUMMARY.md`. | Three-pair slice covers ticket status, calendar attendee, and memory policy side effects. |
+| Source-preserving and capability-scoped prompting prevent observed forbidden execution on the clean 25-pair slice. | Supported on 25-pair follow-up | `paper/tables/followup_gpt54nano_25pairs_1200_defense/RESULT_SUMMARY.md`; c3/c4 ASR 0%. | Both reduce ASR by 24 pp versus c2x, but BSR is lower than c2x. |
+| TraceGate replay prevents observed forbidden execution on the clean 25-pair slice while preserving utility. | Supported as deterministic replay | `outputs/replayed_logs/followup_gpt54nano_25pairs_1200_defense_c5x_replay_from_c2x.jsonl`; c5x replay ASR 0%, IUSR 72%, 10 blocks. | Must describe as replay of saved c2x outputs, not independent model resampling. |
+| An LLM guard baseline can sanitize saved c2x tool calls on the clean 25-pair slice. | Supported as replay baseline | `paper/tables/followup_gpt54nano_25pairs_1200_defense_guard/RESULT_SUMMARY.md`; c6 replay ASR 0%, IUSR 72%. | Must describe as another model-call sanitizer over saved proposed tool calls, not a deterministic guarantee. |
+| `gpt-5.5` is robust on the current 25-pair core check. | Supported | `paper/tables/followup_gpt55_25pairs_1200_core/RESULT_SUMMARY.md`; c0/c2x/c5x ASR 0%. | Use as model-dependence evidence, not as attack amplification. |
+| Executor model choice can change hard-slice outcomes under the same extractive handoff. | Supported as tiny role diagnostic | `paper/tables/followup_hetero_hard6pairs_readerplanner54nano_executor55_c2x/RESULT_SUMMARY.md`; all-nano c2x attacks 6/6 hard injected tasks, nano-reader/planner plus `gpt-5.5` executor attacks 0/6. | Do not present as a powered defense comparison or a general heterogeneous-agent law. |
 
 ## Mixed or Unsupported Claims
 
 | Claim | Status | Evidence | Required wording |
 |---|---|---|---|
-| Source laundering universally increases attack success across models. | Not supported | `paper/tables/schema_prompt_v2b_cross_model.md`; `gpt-4.1-nano` c0 ASR 24%, c2x ASR 24%. | Say the delegation-specific lift is model-dependent. |
-| `gpt-4.1-nano` is safer than `gpt-5.4-nano`. | Not supported | Direct ASR is higher on `gpt-4.1-nano`; BSR is lower. | Say `gpt-4.1-nano` is directly vulnerable and less useful in this benchmark. |
-| Prompt-only defenses are sufficient. | Not supported | c3 and c4 reduce attacks but reduce BSR; c3 still fails on `gpt-4.1-nano`. | Say prompt-only defenses help but are brittle. |
-| Results establish production-world attack rates. | Not supported | All tasks and tools are synthetic mocks. | Say SLaMBench is a controlled systems benchmark, not a production prevalence study. |
+| Source laundering universally increases attack success across models. | Not supported | `gpt-5.5` core ASR is 0%; older `gpt-4.1-nano` direct baseline is already vulnerable. | Say the delegation-specific lift is model-dependent. |
+| More agents alone cause the attack. | Not supported | Clean topology ablation: c1 ASR 0%, c2 ASR 4%, c2x ASR 24%, c2o ASR 28%. | Say provenance-losing composition causes the observed lift. |
+| Prompt-only defenses are sufficient. | Not supported | c3/c4 reduce ASR but reduce benign success relative to c2x and do not provide runtime enforcement. | Say prompt defenses help but should be layered with tool-boundary enforcement. |
+| The TraceGate replay row is a fresh model sample. | Not supported | It is generated by `scripts/replay_tool_logs.py --as-condition c5x_tracegate_extractive_naive`. | Say deterministic runtime replay of saved c2x outputs. |
+| The LLM guard baseline is a formal substitute for deterministic enforcement. | Not supported | It is another model call evaluated as replay sanitizer. | Say empirical guard baseline; TraceGate remains deterministic/auditable. |
+| The six-task repeatability sweep estimates benchmark-wide attack rates. | Not supported | Tasks were selected because c2x attacked and c0 did not in the clean topology audit. | Say post-hoc hard-case stability check. |
+| Source laundering shows positive c2x amplification for non-email side effects in the current data. | Not supported | Tiny non-email probe: c0 ASR 33%, c2x ASR 0%, TraceGate replay ASR 0%. | Say the current positive amplification claim is strongest for unauthorized-recipient sends. |
+| A stronger executor universally fixes source laundering in heterogeneous systems. | Not supported | Heterogeneous diagnostic covers one role assignment on six hard base tasks. | Say executor robustness can matter, but broader heterogeneous sweeps remain future work. |
+| Results establish production-world attack rates. | Not supported | All tasks and tools are synthetic mocks. | Say SLaMBench is a controlled diagnostic benchmark. |
 
 ## Paper-Safe Claim Wording
 
 Use:
 
-> On a scaled synthetic multidomain benchmark, source-laundering through extractive delegation increases unauthorized-recipient tool calls for `gpt-5.4-nano`; a deterministic runtime monitor eliminates observed unauthorized sends while preserving injected-task utility.
+> On a scaled synthetic multidomain benchmark, source-laundering through
+> extractive delegation increases unauthorized-recipient tool calls for
+> `gpt-5.4-nano`; a deterministic runtime monitor eliminates observed
+> unauthorized sends while preserving injected-task utility. Follow-up ablations
+> show that the effect comes from provenance-losing composition rather than
+> delegation depth alone, and stronger current models can show provenance dropout
+> without executed attacks. A small heterogeneous diagnostic further suggests
+> executor robustness can matter even when upstream agents drop provenance.
 
 Avoid:
 
@@ -35,7 +53,7 @@ Avoid:
 
 Avoid:
 
-> Source preservation solves source laundering.
+> Any source-preserving prompt fully solves source laundering.
 
 Avoid:
 

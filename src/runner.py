@@ -61,6 +61,8 @@ def run_task(
                     prior_outputs=prior_outputs,
                 )
                 output = result.output
+                if isinstance(output, dict) and "parse_error" in output:
+                    errors.append({"stage": stage, "error": output["parse_error"]})
         except Exception as exc:  # Keep partial traces for debugging API failures.
             output = {"tool_calls": [], "error": repr(exc)}
             result = None

@@ -2,6 +2,23 @@
 
 This plan strengthens the source-laundering paper with a small number of API-only experiments.
 
+## Execution status
+
+Status as of 2026-06-28: the minimum experiments are complete, and all optional
+additions below have at least a bounded diagnostic artifact. The current
+paper-facing package uses:
+
+- `gpt-5.5` current-model replication on the 25-pair core slice.
+- `gpt-5.4-nano` topology ablation on the 25-pair slice.
+- `gpt-5.4-nano` defense comparison with TraceGate replay and an LLM-guard
+  replay baseline.
+- Post-hoc repeatability, tiny non-email side-effect, and tiny heterogeneous
+  role-composition diagnostics.
+
+The authoritative current write-up is `paper/main.tex`; claim boundaries are in
+`paper/CLAIM_CHECKLIST.md`, and requirement-level evidence is in
+`paper/COMPLETION_AUDIT.md`.
+
 ## Minimum experiments
 
 ### 1. Current-model replication
@@ -66,8 +83,19 @@ Cost formula:
 estimated_cost = input_million_tokens * input_price + output_million_tokens * output_price
 ```
 
-Current OpenAI public pricing lists standard `gpt-5.5` at $5 per 1M input tokens and $30 per 1M output tokens, while `gpt-5.4-nano` is listed at $0.20 per 1M input tokens and $1.25 per 1M output tokens. Batch or Flex pricing can reduce cost if turnaround time allows.
+The experiment summaries use the planning-time price assumptions recorded in
+`scripts/summarize_openai_usage.py`: standard `gpt-5.5` at $5 per 1M input
+tokens and $30 per 1M output tokens, and `gpt-5.4-nano` at $0.20 per 1M input
+tokens and $1.25 per 1M output tokens. These prices are configurable because
+provider pricing can change independently of saved artifacts.
 
 ## Paper update guidance
 
 If the `gpt-5.5` replication supports positive ATR, add it to the main results as current-model support. If it does not, report the result transparently as model dependence and emphasize that TraceGate blocks the forbidden tool side effect across models. The strongest final paper will have three clean tables: core model comparison, topology-depth ablation, and defense comparison.
+
+Actual outcome: the `gpt-5.5` replication followed the low-ASR branch, so the
+paper reports it as model-dependence evidence rather than a positive-ATR
+headline. The final paper keeps three central tables (main result, topology, and
+defense comparison) and folds current-model, repeatability, non-email, guard,
+and heterogeneous-role findings into model-dependence, limitations, and artifact
+summaries with conservative wording.

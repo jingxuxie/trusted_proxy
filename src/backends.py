@@ -161,7 +161,7 @@ class OpenAIBackend(BaseBackend):
         model: str,
         api_key_file: str | None = None,
         max_output_tokens: int = 500,
-        temperature: float = 0.0,
+        temperature: float | None = None,
         request_sleep: float = 0.0,
     ):
         self.model = model
@@ -194,13 +194,12 @@ class OpenAIBackend(BaseBackend):
     ) -> BackendResult:
         del task, defense, prior_outputs
         schema = TOOL_CALL_SCHEMA if stage in {"direct_executor", "executor"} else AGENT_JSON_SCHEMA
-        response = self.client.responses.create(
-            model=self.model,
-            input=messages,
-            temperature=self.temperature,
-            max_output_tokens=self.max_output_tokens,
-            store=False,
-            text={
+        request = {
+            "model": self.model,
+            "input": messages,
+            "max_output_tokens": self.max_output_tokens,
+            "store": False,
+            "text": {
                 "format": {
                     "type": "json_schema",
                     "name": "agent_output",
@@ -208,14 +207,20 @@ class OpenAIBackend(BaseBackend):
                     "schema": schema,
                 }
             },
-        )
+        }
+        if self.temperature is not None:
+            request["temperature"] = self.temperature
+        response = self.client.responses.create(**request)
         if self.request_sleep:
             time.sleep(self.request_sleep)
         raw_text = getattr(response, "output_text", None)
         if raw_text is None:
             raw_text = str(response)
-        output = find_json_object(raw_text)
         usage = {}
         if getattr(response, "usage", None) is not None:
             usage = response.usage.model_dump() if hasattr(response.usage, "model_dump") else dict(response.usage)
+        try:
+            output = find_json_object(raw_text)
+        except Exception as exc:
+            output = {"tool_calls": [], "parse_error": repr(exc)}
         return BackendResult(output=output, raw_text=raw_text, usage=usage)

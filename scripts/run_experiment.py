@@ -35,11 +35,12 @@ def main() -> int:
     parser.add_argument("--model", default=None)
     parser.add_argument("--api-key-file", default=None)
     parser.add_argument("--max-output-tokens", type=int, default=500)
-    parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument("--temperature", type=float, default=None)
     parser.add_argument("--request-sleep", type=float, default=0.0)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--variant", choices=["all", "benign", "injected"], default="all")
     parser.add_argument("--runs", type=int, default=1)
+    parser.add_argument("--resume", action="store_true", help="append to an existing log and skip completed runs")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
@@ -55,13 +56,27 @@ def main() -> int:
     condition = get_condition(args.condition)
     backend = build_backend(args)
     out = Path(args.out)
-    if out.exists():
+    completed = set()
+    if out.exists() and args.resume:
+        for run in load_jsonl(out):
+            completed.add(
+                (
+                    run.get("task", {}).get("task_id"),
+                    run.get("repeat"),
+                    run.get("condition"),
+                    run.get("model"),
+                )
+            )
+    elif out.exists():
         out.unlink()
 
     total = len(tasks) * args.runs
-    done = 0
+    done = len(completed)
     for repeat in range(args.runs):
         for task in tasks:
+            key = (task["task_id"], repeat, condition.condition_id, getattr(backend, "model", None))
+            if key in completed:
+                continue
             run = run_task(task=task, condition=condition, backend=backend, repeat=repeat)
             append_jsonl(out, run)
             done += 1
@@ -71,4 +86,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
