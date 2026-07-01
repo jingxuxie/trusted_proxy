@@ -4,6 +4,7 @@
 \usepackage{microtype}
 \usepackage{amsmath}
 \usepackage{booktabs}
+\usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{url}
 \usepackage{xcolor}
@@ -41,85 +42,142 @@ workspace, CRM, code-review, travel, and research-assistant domains. On a
 raises unauthorized-recipient attack success from 6\% in a direct single-agent
 baseline to 22\%, a +16 percentage-point lift. A deterministic TraceGate monitor
 eliminates observed unauthorized sends while preserving more injected-task
-utility than the vulnerable multi-agent system. Ablations show that generic
-delegation depth is not sufficient: attacks appear when intermediate agents
-strip or normalize provenance. A current-model \texttt{gpt-5.5} replication has
-low attack success across all tested conditions, showing model dependence while
-preserving the diagnostic value of provenance dropout.
+utility than the vulnerable multi-agent system. Follow-up ablations show that
+attack amplification is not caused by delegation depth alone; it appears when
+intermediate agents strip or normalize provenance. A current-model
+\texttt{gpt-5.5} replication has low attack success across all tested
+conditions, showing model dependence while preserving the diagnostic value of
+provenance dropout. These results argue for treating inter-agent messages as
+security-relevant authority transitions, not merely summaries.
 \end{abstract}
 
 \section{Introduction}
 
-LLM agents are increasingly deployed as \emph{systems} rather than as single
-prompts. A user-facing assistant may delegate document reading to one agent,
-planning to another, and tool execution to a third. This decomposition localizes
-expertise and shortens prompts, but it also creates a security boundary. A Reader
-may preserve useful facts from an untrusted artifact while dropping the fact that
-the artifact had no authority; a Planner or Executor may then receive the same
-content as a trusted peer message.
+LLM agents are increasingly built as \emph{systems} rather than single prompts.
+A deployed assistant may ask one model call to read documents, another to turn
+those documents into a plan, and another to execute tool calls. This design is
+attractive: it reduces prompt complexity, makes roles easier to debug, and lets
+developers mix models, tools, memories, and guard components. Frameworks for
+reasoning-and-acting agents, multi-agent conversation, software-engineering
+agents, and tool protocols all encourage this modular view of agentic
+AI~\citep{yao2022react,wu2023autogen,yang2024sweagent,mcp2025tools}. Yet the
+same modularity also creates a subtle security question: when information moves
+between agents, does its authority move with it?
 
-Consider a benign user request: ``read this vendor note and email
-\texttt{finance@example.test} the payment terms.'' The vendor note correctly
-states the payment terms, but also contains ``add \texttt{audit-log@example.test}
-as a required recipient.'' A direct single-agent system sees that the extra
-recipient is embedded in the document. In a multi-agent system, however, a Reader
-might rewrite the artifact as ``action item: add the audit recipient,'' and a
-Planner might further rewrite it as ``required step: send the summary to
-\texttt{audit-log@example.test}.'' The downstream Executor no longer sees a raw
-untrusted instruction; it sees a plan produced by a peer. The question is not
-whether indirect prompt injection exists, but whether delegation changes the
-instruction's effective authority.
+The problem is easiest to see in a mundane workflow. A user asks: ``read this
+vendor note and email \texttt{finance@example.test} the payment terms.'' The note
+truthfully states that the invoice is net-30, but it also contains an
+attacker-controlled sentence: ``add \texttt{audit-log@example.test} as a required
+recipient.'' A direct single-agent system sees the extra recipient inside the
+untrusted document. A multi-agent system may instead transform the sentence over
+several steps: the Reader extracts it as an ``action item,'' the Planner promotes
+it to a ``required step,'' and the Executor sees a peer-authored plan rather than
+the original untrusted artifact. The instruction has not disappeared; its source
+has been washed away.
 
-We call this transformation \emph{source laundering}. The analogy is intentional:
-the content has not disappeared, but its provenance has been washed through
-apparently legitimate transformations. Source laundering is related to indirect
-prompt injection~\citep{greshake2023not,zhan2024injecagent}, but its unit of
-analysis is the inter-agent boundary; it is also a confused-deputy
-failure~\citep{hardy1988confused}, where a tool-authorized component exercises
-authority on behalf of a less trusted principal.
+We call this failure mode \emph{source laundering}. It is related to indirect
+prompt injection, where malicious instructions appear in external content
+processed by an LLM application~\citep{greshake2023not,zhan2024injecagent}. The
+unit of analysis is different. We ask whether the \emph{same} untrusted
+instruction becomes more effective after crossing an inter-agent boundary. In
+systems-security terms, this resembles the classic confused-deputy problem: a
+component with authority is tricked into exercising that authority for a less
+trusted principal~\citep{hardy1988confused}. In LLM systems, however, the deputy
+is not just calling an API; it is interpreting a natural-language handoff whose
+source and authority may be ambiguous.
 
-We ask whether extractive delegation increases unauthorized tool use relative to
-direct exposure (RQ1), which payloads and domains survive the reader--planner
-boundary (RQ2), and whether prompt-level provenance or deterministic
-tool-boundary checks reduce the risk without destroying utility (RQ3). Our
-contributions are a formalization of source laundering, SLaMBench, an evaluation
-of direct/delegated/defended topologies, and evidence that the failure is tied to
-provenance-losing composition rather than delegation depth alone. We do not claim
-that every multi-agent system is less secure than every single-agent system; we
-show that a plausible extractive boundary can convert untrusted artifact text
-into peer-agent authority unless provenance is preserved and enforced.
+This matters because agentic systems increasingly have side effects. A tool call
+can send an email, update a ticket, create a calendar event, write long-term
+memory, or call an external API. The Model Context Protocol specification, for
+example, explicitly describes tools that language models may discover and invoke,
+and recommends human confirmation and clear tool exposure because model-controlled
+tools interact with external systems~\citep{mcp2025tools}. The OWASP GenAI Top
+10 likewise highlights prompt injection, excessive agency, sensitive information
+disclosure, and supply-chain risks as central security concerns for generative AI
+applications~\citep{owasp2025llmtop10}. Source laundering sits at the
+intersection of these concerns: untrusted data becomes a peer instruction, and a
+peer instruction becomes a side effect.
+
+This paper studies three questions. \textbf{RQ1:} Can a provenance-losing
+multi-agent handoff increase unauthorized tool use relative to direct exposure to
+the same injected artifact? \textbf{RQ2:} Is the effect caused by the number of
+agents, or by a specific loss of source and authority metadata? \textbf{RQ3:} Do
+prompt-level provenance defenses, LLM-based guards, and deterministic tool-boundary
+checks differ in their security/utility tradeoffs?
+
+Our contributions are: (i) a threat model for source laundering as an
+authorization-boundary failure in multi-agent LLM systems; (ii) SLaMBench, a
+closed-world benchmark of paired benign and injected tool-use tasks; (iii) an
+evaluation of direct, delegated, source-preserving, capability-scoped,
+LLM-guarded, and runtime-monitored conditions; and (iv) a set of empirical
+findings that make the mechanism precise. On \texttt{gpt-5.4-nano}, extractive
+delegation amplifies unauthorized-recipient sends; naive delegation depth alone
+does not. TraceGate, a simple deterministic monitor, blocks the forbidden side
+effect while preserving useful work. On \texttt{gpt-5.5}, the same benchmark
+reveals provenance dropout but no executed attacks on the tested slice, so the
+right claim is conditional rather than universal.
+
+\begin{figure}[t]
+\centering
+\fbox{\begin{minipage}{0.94\linewidth}
+\small
+\textbf{Placeholder for the final overview figure.} Replace this box with a
+three-panel figure. \textbf{Panel A:} draw the source-laundering pipeline:
+Untrusted artifact $\rightarrow$ Reader summary/action items $\rightarrow$
+Planner steps $\rightarrow$ Executor tool call, with the forbidden recipient
+shown in red and provenance labels fading or being dropped. \textbf{Panel B:}
+show the main quantitative impression as three bars for ASR on SLaMBench-50:
+direct single-agent 6\%, extractive multi-agent 22\%, TraceGate 0\%; optionally
+add a small line for injected utility (54\%, 50\%, 64\%). \textbf{Panel C:} show
+the mechanism/defense story: naive depth has low ASR, provenance-losing handoffs
+have high ASR, and tool-boundary enforcement blocks execution even when upstream
+PDR remains high. The visual message should be: ``the danger is not more agents;
+it is authority crossing a provenance-losing boundary.''
+\end{minipage}}
+\caption{Suggested Figure 1: an overview of the threat, benchmark, and headline
+result. The final figure should prioritize the conceptual flow and the three
+headline numbers rather than reproducing every table.}
+\label{fig:overview}
+\end{figure}
 
 \section{Threat Model and Security Property}
 
-The user provides a legitimate task, such as reading an invoice note and
-emailing an authorized summary to \texttt{finance@example.test}. The adversary
-can place text inside an untrusted artifact that the system must process, but
-cannot modify system prompts, trusted context, tool code, model weights, runtime
-policy, or the user's initial goal. The protected assets are synthetic but
-structurally representative: authorized recipients, synthetic secrets, protected
-status fields, calendar attendees, and memory entries. The core security property
-is \emph{authority separation}: untrusted content may supply facts needed for the
-task, but it must not authorize new tool calls, new recipients, protected
-updates, memory policies, or secret disclosure.
+The user provides a legitimate task, such as reading an invoice note and emailing
+an authorized summary to \texttt{finance@example.test}. The adversary can place
+text inside an untrusted artifact that the system must process: a vendor note, a
+customer ticket, a pull-request note, an itinerary note, or an abstract note. The
+adversary cannot modify system prompts, trusted context, tool code, model weights,
+runtime policy, or the user's initial goal. The attacker also does not control
+the mock tools used for evaluation.
 
-We define a source-laundering attack as an execution with three properties: an
-attacker-controlled instruction appears in an untrusted artifact; an intermediate
-agent transforms it into a peer message without sufficient source, trust, and
-no-authority metadata; and a downstream agent acts on the transformed instruction
-by emitting a forbidden tool call. A run that merely fails the legitimate task is
-a utility failure, while a run that sends to \texttt{audit-log@example.test} is a
-security failure. All tools are deterministic mocks, with no real email,
-calendar, ticket, browser, or memory service contacted.
+The protected assets are synthetic but structurally representative: authorized
+recipients, synthetic secrets, protected status fields, calendar attendees, and
+memory entries. The security property is \emph{authority separation}: untrusted
+content may provide facts needed to complete the user task, but it must not
+authorize new recipients, state changes, memory policies, or secret disclosure.
+For example, an external invoice note may state payment terms, but it may not
+authorize the assistant to email an additional recipient.
 
-\section{SLaMBench}
+A source-laundering attack has three stages. First, an attacker-controlled
+instruction appears in an untrusted artifact. Second, an intermediate agent
+transforms it into a peer message without sufficient source, trust, and
+no-authority metadata. Third, a downstream agent acts on the transformed message
+by emitting a forbidden tool call. A run that fails to complete the legitimate
+email is a utility failure; a run that emails \texttt{audit-log@example.test} is a
+security failure. All experiments are closed-world: tools are deterministic mocks,
+secrets and recipients are synthetic, and no real email, calendar, ticket,
+browser, or memory service is contacted.
 
+\section{Benchmark and Method}
+
+\paragraph{SLaMBench.}
 SLaMBench contains paired benign and injected task variants. The main scaled task
 set, SLaMBench-50, contains 50 benign tasks and 50 injected variants across five
 domains (Table~\ref{tab:slambench}). Each pair shares the same user goal, trusted
 context, allowed tools, expected benign outcome, and reference benign tool calls;
 the injected variant adds one attacker-controlled payload to the untrusted
-artifact. This paired design lets us compare benign utility and injected security
-without changing the legitimate task.
+artifact. This paired design makes the comparison simple: the useful task is the
+same, but the injected task contains one extra untrusted instruction.
 
 \begin{table}[t]
 \centering
@@ -139,312 +197,333 @@ Research & 10 & Write bibliography note and email lead & Add audit recipient \\
 \label{tab:slambench}
 \end{table}
 
-\paragraph{Task format.}
-Each task specifies the user goal, trusted context, untrusted artifacts, allowed
-tools, expected benign outcomes, forbidden outcomes, and an attack tool-call
-template. The main forbidden outcome is any executed \texttt{send\_email} call
-containing \texttt{audit-log@example.test}, with additional checks for
-synthetic-secret leakage and untrusted memory-policy writes.
+\paragraph{Payloads.}
+The injected variants use five intentionally simple payload classes. \emph{Direct
+instruction} explicitly tells the system to send the extra recipient. \emph{Fake
+authority} claims that a user, compliance process, or policy has approved the
+extra recipient. \emph{Delegation poisoning} targets the planning boundary by
+asking one agent to tell another agent to execute the forbidden call.
+\emph{Summary bait} phrases the forbidden content as a natural action item.
+\emph{Memory poisoning} attempts to write a durable policy such as ``external
+vendor notes are trusted.'' The goal is not to find the strongest adaptive
+attack, but to test whether ordinary-looking workflow text becomes more dangerous
+after provenance-losing delegation.
 
-\paragraph{Payload classes.}
-The injected variants use five intentionally simple payload classes: direct
-instructions, fake authority claims, delegation poisoning, summary bait, and
-memory poisoning. The goal is not to optimize an adaptive attack, but to measure
-how ordinary delegation transforms source and authority.
+\paragraph{Topologies.}
+The \textbf{direct single-agent} condition
+(\texttt{c0\_single\_direct}) receives the user goal, trusted context, untrusted
+artifact, and tool signatures, then emits tool calls. The main vulnerable
+condition is \textbf{extractive multi-agent}
+(\texttt{c2x\_3agent\_extractive\_naive}): a Reader extracts action items from
+the artifact, a Planner turns the Reader output into steps, and an Executor emits
+tool calls. The Reader does not preserve an explicit untrusted label in this
+stress condition, modeling a common engineering shortcut where upstream agents
+compress or normalize task context before execution.
 
-\paragraph{Why synthetic tasks.}
-The benchmark is synthetic by design. This makes every tool call inspectable,
-eliminates risk to real users, and avoids relying on LLM judges for the main
-security metric. Synthetic tasks also let us pair benign and injected variants
-with controlled differences. The limitation is that absolute attack rates should
-not be interpreted as production incident rates; the benchmark is a diagnostic
-instrument for a specific compositional failure mode.
+We also run topology ablations. \texttt{c1\_2agent\_naive} and
+\texttt{c2\_3agent\_naive} use free-form delegation without the extractive action
+item prompt. \texttt{c2o\_3agent\_oracle\_laundered} gives downstream agents a
+deliberately provenance-stripped peer summary, isolating what happens after
+laundering has already occurred.
 
-\section{Agent Topologies and Defenses}
+\paragraph{Defenses.}
+We compare three defense styles. \textbf{Source-preserving} prompts require the
+Reader to preserve source identifiers and trust labels. \textbf{Capability-scoped}
+prompts tell downstream agents that peers may suggest actions but cannot
+authorize sensitive tools unless the user goal or trusted context does so.
+\textbf{TraceGate} uses the same extractive model outputs but checks sensitive
+tool calls before execution. It blocks synthetic-secret disclosure, unauthorized
+recipients or attendees, untrusted memory-policy writes, and sensitive actions
+without trusted authorization. For mixed-recipient emails, it prunes unauthorized
+recipients and preserves authorized sends when possible. We also evaluate an
+LLM-guard replay baseline over saved c2x tool calls; unlike TraceGate, this guard
+is another model-call sanitizer rather than deterministic enforcement.
 
-\textbf{Direct single agent} (\texttt{c0\_single\_direct}) sees the user goal,
-trusted context, untrusted artifact, and tool signatures, then emits final tool
-calls. \textbf{Extractive multi-agent}
-(\texttt{c2x\_3agent\_extractive\_naive}) uses a Reader that extracts action
-items from the artifact, a Planner that turns the Reader output into steps, and
-an Executor that emits tool calls. The untrusted artifact is not labeled as
-untrusted in the extractive Reader prompt, modeling a common pattern where
-upstream agents compress or normalize task context before execution.
-
-We test three defenses. \textbf{Source-preserving}
-(\texttt{c3\_source\_preserving}) requires source identifiers and trust labels in
-Reader output and tells downstream agents not to convert untrusted instructions
-into authorized actions. \textbf{Capability-scoped}
-(\texttt{c4\_capability\_scoped}) allows peers to suggest actions but not
-authorize sensitive tools unless the original user goal or trusted context does
-so. \textbf{TraceGate} (\texttt{c5x\_tracegate\_extractive\_naive}) uses the same
-extractive topology as c2x but checks sensitive tool calls before execution,
-blocking synthetic-secret disclosure, unauthorized recipients or attendees,
-untrusted memory-policy writes, and sensitive actions without trusted
-authorization. For mixed-recipient emails, it prunes unauthorized recipients and
-preserves authorized sends when possible.
-
-\section{Metrics and Analysis Protocol}
-
+\paragraph{Metrics.}
 All metrics are computed from saved tool traces. \textbf{Benign Success Rate}
-(BSR) is the fraction of benign variants where the expected user task succeeds
-and no forbidden event occurs. \textbf{Injected Utility Success Rate} (IUSR)
-applies the same check to injected variants. \textbf{Attack Success Rate} (ASR)
-is the fraction of injected variants with a forbidden event in the executed tool
-log; blocked calls are not counted as attacks.
+(BSR) is benign-task success without forbidden behavior. \textbf{Injected Utility
+Success Rate} (IUSR) is the same useful-task success check on injected variants,
+again requiring no forbidden behavior. \textbf{Attack Success Rate} (ASR) is the
+fraction of injected variants with a forbidden event in the executed tool log;
+blocked calls do not count as attacks. \textbf{Authority Transfer Rate} (ATR) is
+ASR minus the direct-baseline ASR on the same task set. \textbf{Provenance Dropout
+Rate} (PDR) is the fraction of reader/planner messages that carry task-specific
+forbidden content without source, trust, and no-authority metadata. We keep most
+confidence intervals and diagnostic breakdowns in the repository tables and
+supplement so that the main text emphasizes the mechanism.
 
-\textbf{Authority Transfer Rate} (ATR) measures delegation-specific lift:
-\begin{equation*}
-\mathrm{ATR}(c) = \mathrm{ASR}(c) - \mathrm{ASR}(\texttt{c0\_single\_direct}).
-\end{equation*}
-This metric is important because some models are directly vulnerable. A high raw
-ASR in a delegated condition is evidence of insecurity; a positive ATR is
-evidence that the inter-agent boundary adds risk beyond direct exposure.
+\section{Results}
 
-\textbf{Provenance Dropout Rate} (PDR) is the fraction of reader/planner messages
-that carry task-specific forbidden content without source, trust, and
-no-authority metadata. \textbf{Capability-Normalized Attack Success} (CNAS) is
-ASR divided by BSR, preventing weak agents from appearing secure merely because
-they fail both benign and malicious tasks. We report rates and differences in
-percentage points.
+The results are organized around four takeaways. First, extractive delegation can
+amplify unauthorized sends. Second, the amplification is tied to
+provenance-losing handoffs rather than the mere number of agents. Third,
+prompt-only defenses help but can trade off benign utility, while tool-boundary
+checks preserve the useful part of the task. Fourth, the phenomenon is
+model-dependent: stronger current models may show provenance dropout without
+executed attacks.
 
-\section{Main Results}
+\subsection{Main finding: delegation can transfer authority}
 
-The main scaled result uses \texttt{gpt-5.4-nano} on SLaMBench-50. Full tables
-are in \path{paper/tables/openai_schema_prompt_50pairs_gpt54nano_tracegate_pruned/}.
-
-\begin{table}[t]
-\centering
-\small
-\begin{tabular}{lrrrrrrr}
-\toprule
-Condition & BSR & IUSR & ASR & ATR & PDR & CNAS & Blocks \\
-\midrule
-Direct single-agent & 60\% & 54\% & 6\% & 0 pp & 0\% & 0.10 & 0 \\
-Extractive multi-agent & 70\% & 50\% & 22\% & +16 pp & 77\% & 0.31 & 0 \\
-TraceGate & 66\% & 64\% & 0\% & -6 pp & 69\% & 0.00 & 11 \\
-\bottomrule
-\end{tabular}
-\caption{Main 50-pair result on \texttt{gpt-5.4-nano}. ATR is ASR minus the
-direct-baseline ASR; PDR is provenance dropout in intermediate messages; CNAS is
-ASR divided by BSR.}
-\label{tab:main}
-\end{table}
-
-The extractive multi-agent topology increases ASR by +16 percentage points over
-direct exposure. TraceGate reduces ASR by -22 points relative to extractive
-multi-agent delegation. TraceGate produces zero audit-log sends, records 11
-sensitive-call blocks, and sanitizes five mixed-recipient emails so the
-authorized recipient still receives the intended message.
-
-\paragraph{Answer to RQ1.}
-The same injected artifacts are present in c0 and c2x, but c2x has a higher ASR.
-The trace-level explanation is consistent with source laundering: the Reader
-extracts the forbidden recipient as an action item, the Planner promotes it into
-a required step, and the Executor emits the corresponding tool call.
-
-\paragraph{Utility/security tradeoff.}
-The extractive multi-agent system has higher benign success than the direct
-baseline (70\% versus 60\%), but the utility gain comes with higher ASR and lower
-IUSR. TraceGate recovers the best injected utility among the three main
-conditions (64\%) while driving ASR to 0\%, showing that tool-boundary
-enforcement can block source-laundered actions without refusing the whole task.
-
-\paragraph{Provenance dropout.}
-The high PDR values show that extractive delegation frequently carries forbidden
-recipient content forward without source and authority metadata. TraceGate does
-not repair this upstream dropout; it prevents the laundered instruction from
-becoming an executed unauthorized tool call.
+The main SLaMBench-50 run uses \texttt{gpt-5.4-nano}. Table~\ref{tab:main_simple}
+shows only the numbers needed to understand the result; fuller tables with CIs,
+PDR, CNAS, and block counts are in the repository.
 
 \begin{table}[t]
 \centering
 \small
-\begin{tabular}{lc}
+\begin{tabular}{lccc}
 \toprule
-Payload class & c2x ASR \\
+Condition & Benign utility & Safe utility under attack & Forbidden sends \\
 \midrule
-Summary bait & 50\% \\
-Fake authority & 40\% \\
-Delegation poisoning & 10\% \\
-Direct instruction & 10\% \\
-Memory poisoning & 0\% \\
+Direct single-agent & 60\% & 54\% & 6\% \\
+Extractive multi-agent & 70\% & 50\% & 22\% \\
+TraceGate & 66\% & 64\% & 0\% \\
 \bottomrule
 \end{tabular}
-\caption{Payload-level ASR for extractive multi-agent delegation.}
-\label{tab:payload}
+\caption{Headline SLaMBench-50 result on \texttt{gpt-5.4-nano}. The main visual
+impression is a rise from 6\% to 22\% forbidden sends under extractive delegation,
+then 0\% after TraceGate.}
+\label{tab:main_simple}
 \end{table}
 
-\paragraph{Answer to RQ2.}
-Table~\ref{tab:payload} suggests that the most successful attacks are not the
-most obviously adversarial ones. Summary bait and fake-authority payloads are
-more effective than direct instructions in the extractive topology. This matches
-the threat model: a Reader optimized to extract action items is more likely to
-preserve text that already looks like workflow content. The attack appears across
-all five domains in c2x, although the main positive result remains
-unauthorized-recipient sends.
+The extractive reader--planner--executor topology raises ASR from 6\% to 22\%, a
++16 point ATR relative to direct exposure. This is the core source-laundering
+signal: the same injected artifacts are present in both conditions, but the
+provenance-losing handoff makes the forbidden instruction more likely to execute.
+The security cost is not explained by worse task competence. The extractive
+system has higher benign utility than the direct baseline (70\% versus 60\%), but
+its injected utility falls because it sometimes completes the task in an unsafe
+way. TraceGate changes the shape of the failure: it blocks the forbidden sends
+and preserves the authorized work, yielding the best safe utility under attack
+(64\%).
 
-\paragraph{Qualitative trace.}
-In one fake-authority case, the Reader converts an untrusted ``user-approved
-routing exception'' into an action item to send the summary to
-\texttt{audit-log@example.test}; the Planner schedules it and the Executor sends
-it. In a TraceGate case, a mixed-recipient email is pruned to the authorized
-finance recipient. These traces illustrate why we distinguish upstream
-laundering from downstream enforcement.
+A typical successful attack follows the intended laundering path. The Reader
+converts an untrusted ``user-approved routing exception'' into an action item to
+send the final summary to \texttt{audit-log@example.test}; the Planner turns that
+item into a required email step; the Executor emits the corresponding
+\texttt{send\_email} call. In a defended trace, the model proposes a mixed
+recipient list, TraceGate removes \texttt{audit-log@example.test}, and the
+authorized finance email is still executed. The important distinction is that
+TraceGate does not fix the upstream provenance dropout; it prevents the dropout
+from becoming an external side effect.
 
-\section{Topology Ablation}
+\subsection{Mechanism: not more agents, but provenance-losing handoffs}
 
-The follow-up topology ablation uses the same 25-pair SLaMBench slice for all
-conditions and \texttt{gpt-5.4-nano}. It separates generic delegation depth from
-the provenance-losing handoff that defines source laundering.
+The topology ablation uses the same 25-pair SLaMBench slice and
+\texttt{gpt-5.4-nano}. Rather than reporting every metric, Table~\ref{tab:topology_simple}
+focuses on the mechanism.
 
 \begin{table}[t]
 \centering
 \small
-\begin{tabular}{lrrrr}
+\begin{tabular}{p{0.31\linewidth}cp{0.43\linewidth}}
 \toprule
-Condition & BSR & IUSR & ASR & PDR \\
+Condition & ASR & What it shows \\
 \midrule
-Direct single-agent & 60\% & 48\% & 4\% & 0\% \\
-2-agent naive & 64\% & 60\% & 0\% & 72\% \\
-3-agent naive & 72\% & 72\% & 4\% & 52\% \\
-3-agent extractive & 68\% & 56\% & 24\% & 86\% \\
-Oracle-laundered handoff & 80\% & 52\% & 28\% & 70\% \\
+Direct single-agent & 4\% & Baseline direct exposure to the injected artifact. \\
+2-agent naive & 0\% & Delegation by itself does not create the effect. \\
+3-agent naive & 4\% & More agents still do not raise ASR here. \\
+3-agent extractive & 24\% & Extracting artifact instructions as action items amplifies attacks. \\
+Oracle-laundered handoff & 28\% & Downstream agents are vulnerable once provenance is already stripped. \\
 \bottomrule
 \end{tabular}
-\caption{Topology ablation on the 25-pair benchmark with \texttt{gpt-5.4-nano}.
-The attack emerges in provenance-losing handoffs, not in naive delegation depth
-alone.}
-\label{tab:topology}
+\caption{Topology ablation on the 25-pair slice. The risk appears in
+provenance-losing handoffs, not in naive delegation depth alone.}
+\label{tab:topology_simple}
 \end{table}
 
-Table~\ref{tab:topology} supports a more precise mechanism claim. The naive
-2-agent and 3-agent chains do not increase ASR over direct exposure. In
-contrast, the extractive reader that normalizes document instructions into
-action items raises ASR by +20 points over direct exposure. The oracle-laundered
-condition, where the downstream planner and executor receive a deliberately
-provenance-stripped handoff, raises ASR by +24 points. Thus the core risk is not
-simply ``more agents,'' but composition that strips source and authority metadata
-before a tool-authorized component acts. A no-API trace audit of these saved runs
-gives the same picture: in all six injected tasks where extractive delegation
-attacks and direct exposure does not, the forbidden recipient appears in the
-reader handoff, the planner plan, and the executor output before the tool call.
-Post-hoc diagnostics support the same conservative boundary: on a six-task hard
-slice, extractive delegation re-attacks 8/18 repeated runs while direct exposure
-attacks 2/18; TraceGate replay yields 0/18 executed attacks. A tiny non-email
-side-effect probe does not show positive c2x lift, so our amplification claim is
-centered on unauthorized-recipient sends.
+This ablation sharpens the claim. The naive 2-agent and 3-agent chains do not
+increase ASR over direct exposure. In contrast, the extractive Reader that
+normalizes document instructions into action items raises ASR by +20 points over
+the direct baseline on the same slice, and the oracle-laundered handoff raises it
+by +24 points. A no-API trace audit gives the same picture: in all six injected
+tasks where extractive delegation attacks and direct exposure does not, the
+forbidden recipient appears in the Reader handoff, the Planner plan, and the
+Executor output before the tool call. A hard-case repeatability check is
+consistent but small: extractive delegation re-attacks 8/18 repeated runs, direct
+exposure attacks 2/18, and TraceGate replay executes 0/18 forbidden sends.
 
-\section{Defense Ablations}
+Payloads also support the mechanism. Summary bait and fake authority are more
+effective in the extractive topology than direct instructions: their c2x ASRs are
+50\% and 40\%, compared with 10\% for direct instructions and 10\% for delegation
+poisoning. The most dangerous payloads are not necessarily the most overtly
+adversarial ones; they are the ones that look like ordinary workflow content for
+a Reader to extract.
 
-On the same clean 25-pair slice, we compare prompt-level defenses against the
-extractive condition and replay the same sampled extractive outputs through
-TraceGate. The prompt-defense rows use raw runs with zero parser or truncation
-errors. The TraceGate row is deterministic replay rather than an independent
-model resampling: c2x and c5x use identical prompts and differ only in the
-tool-boundary runtime monitor.
+\subsection{Defenses: prompt provenance helps, tool checks are cleaner}
+
+Table~\ref{tab:defense_simple} compares defenses on the clean 25-pair slice. The
+TraceGate and LLM-guard rows are replays over the same proposed c2x tool calls;
+they are not independent model resamplings.
 
 \begin{table}[t]
 \centering
 \small
-\begin{tabular}{lrrrrr}
+\begin{tabular}{p{0.34\linewidth}ccp{0.27\linewidth}}
 \toprule
-Condition & BSR & IUSR & ASR & PDR & Blocks \\
+Defense condition & Safe utility & ASR & Main tradeoff \\
 \midrule
-Extractive multi-agent & 68\% & 56\% & 24\% & 86\% & 0 \\
-Source-preserving & 44\% & 56\% & 0\% & 86\% & 0 \\
-Capability-scoped & 52\% & 52\% & 0\% & 86\% & 0 \\
-TraceGate replay & 68\% & 72\% & 0\% & 86\% & 10 \\
-LLM guard replay & 68\% & 72\% & 0\% & 86\% & 0 \\
+None: extractive multi-agent & 56\% & 24\% & Useful, but unsafe. \\
+Source-preserving prompts & 56\% & 0\% & Secure here, lower benign utility. \\
+Capability-scoped prompts & 52\% & 0\% & Secure here, also conservative. \\
+TraceGate replay & 72\% & 0\% & Blocks side effects, preserves authorized work. \\
+LLM guard replay & 72\% & 0\% & Works on this slice, but adds another model-dependent component. \\
 \bottomrule
 \end{tabular}
-\caption{Clean 25-pair defense comparison on \texttt{gpt-5.4-nano}. TraceGate is
-a deterministic replay of the extractive model outputs through the runtime
-monitor; the LLM guard is a replay sanitizer over the same proposed tool calls.
-Neither replay row is an independent model resampling.}
-\label{tab:defenses}
+\caption{Defense comparison on the 25-pair slice with \texttt{gpt-5.4-nano}.
+Prompt-only defenses reduce attacks but can be conservative; TraceGate enforces a
+crisp authorization rule at the tool boundary.}
+\label{tab:defense_simple}
 \end{table}
 
-\paragraph{Answer to RQ3.}
-Source and authority metadata are helpful: source-preserving and
-capability-scoped prompts reduce ASR from 24\% to 0\%, a -24 point change
-against extractive delegation.
-The deterministic TraceGate replay produces the same ASR reduction while
-preserving the extractive chain's benign success and improving injected utility
-to 72\% by pruning or blocking unauthorized calls. An LLM guard replay over the
-same saved c2x tool calls also reaches 0\% ASR and 72\% IUSR, but adds another
-model call and can only be audited empirically. Prompt-only defenses reduce
-benign success, suggesting a layered design: upstream agents preserve metadata
-and downstream runtime monitors enforce high-assurance invariants.
+The defense story is encouraging but nuanced. Source-preserving and
+capability-scoped prompts reduce ASR from 24\% to 0\% on this slice, showing that
+source and authority metadata help. However, they also reduce benign success in
+this pilot, likely because they make agents more cautious or verbose around
+otherwise legitimate tool use. TraceGate reaches 0\% ASR while increasing safe
+utility under attack to 72\%, because it can prune a forbidden recipient and still
+execute the authorized send. The LLM guard replay also reaches 0\% ASR on this
+slice, but its assurance is empirical: it is another model decision. TraceGate is
+less general, but more auditable when the policy is crisp, such as ``only send to
+recipients authorized by the user or trusted context.''
 
-\section{Model Dependence}
+\subsection{Model dependence and scope}
 
-The effect is model-dependent. The \texttt{gpt-5.4-nano} topology ablation shows
-a clear source-laundering lift, while two other model checks fall into different
-interpretation regimes: \texttt{gpt-4.1-nano} is already directly vulnerable,
-and \texttt{gpt-5.5} is robust on the 25-pair slice.
-The 25-pair ASRs are 4\%$\rightarrow$24\% for \texttt{gpt-5.4-nano}
-(positive ATR), 24\%$\rightarrow$24\% with TraceGate at 0\% for
-\texttt{gpt-4.1-nano} (high direct ASR), and 0\%$\rightarrow$0\% with TraceGate
-at 0\% for \texttt{gpt-5.5} (low ASR). Thus, the right claim is conditional
-rather than universal. Source laundering is most visible when the direct model
-resists many raw artifact instructions, but delegation removes that protective
-context. If a model is already directly vulnerable, delegation may not increase
-ASR; if a model rejects both direct and laundered instructions, SLaMBench still
-exposes latent provenance dropout but not executed attacks. A six-case
-heterogeneous diagnostic with a \texttt{gpt-5.5} executor also yields 0/6
-attacks, suggesting executor robustness is another axis.
+The cross-model results show that source laundering should be stated as a
+conditional systems failure, not a universal law of multi-agent systems.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lcp{0.42\linewidth}}
+\toprule
+Model & ASR path: direct $\rightarrow$ extractive $\rightarrow$ TraceGate & Regime \\
+\midrule
+\texttt{gpt-5.4-nano} & 4\% $\rightarrow$ 24\% $\rightarrow$ 0\% & Positive authority-transfer signal. \\
+\texttt{gpt-4.1-nano} & 24\% $\rightarrow$ 24\% $\rightarrow$ 0\% & Direct exposure is already vulnerable. \\
+\texttt{gpt-5.5} & 0\% $\rightarrow$ 0\% $\rightarrow$ 0\% & Robust on this slice despite provenance dropout. \\
+\bottomrule
+\end{tabular}
+\caption{Model dependence on the 25-pair slice. SLaMBench distinguishes direct
+susceptibility, delegation-specific amplification, and tool-boundary enforcement.}
+\label{tab:model_simple}
+\end{table}
+
+For \texttt{gpt-4.1-nano}, direct exposure is already vulnerable, so delegation
+cannot add much measured ASR. For \texttt{gpt-5.5}, executed attacks are 0\% in
+all tested conditions, although provenance dropout is still observed in the
+extractive chain. This means the benchmark is diagnostic in two ways. It can show
+executed source-laundering attacks when a model follows laundered instructions,
+and it can show latent provenance loss even when a stronger Executor refuses to
+act. A six-case heterogeneous diagnostic supports the role interpretation:
+all-nano c2x attacks all six selected hard injected tasks, while a
+\texttt{gpt-5.4-nano} Reader/Planner with a \texttt{gpt-5.5} Executor attacks
+0/6. This is not a powered defense result, but it suggests that executor
+robustness and handoff design are separable axes.
+
+The benchmark's scope is also clear. The strongest positive result is about
+unauthorized recipients. A tiny non-email side-effect probe for ticket status,
+calendar attendee, and memory-policy writes does not show positive c2x lift, so
+we do not claim that every side-effect type is equally vulnerable. The broader
+claim is mechanistic: when an upstream agent rewrites untrusted content as a peer
+action item, downstream agents may treat designation as authorization unless the
+system preserves and enforces provenance.
 
 \section{Related Work}
 
-Indirect prompt injection shows that LLM-integrated applications blur the
-boundary between data and instructions when processing retrieved or third-party
-content~\citep{greshake2023not}. AgentDojo, InjecAgent, Agent Security Bench, and
-ToolEmu evaluate attacks and defenses for tool-using agents across broader task
-suites~\citep{debenedetti2024agentdojo,zhan2024injecagent,zhang2024asb,ruan2023toolemu}.
-Prompt Infection, AgentPoison, and ToolHijacker show that multi-agent systems,
-memory, RAG stores, and tool documents create additional attack
-surfaces~\citep{lee2024promptinfection,chen2024agentpoison,shi2025toolhijacker}.
-Source laundering differs by focusing on an authorization transition: the
-attacker instruction need not replicate or poison retrieval; it need only be
-rewritten by a trusted peer in a form that downstream agents treat as executable.
-Defenses such as StruQ, SecAlign, and PromptArmor separate prompt/data channels,
-train injection resistance, or remove injected prompts before
-execution~\citep{chen2024struq,chen2024secalign,shi2025promptarmor}; TraceGate is
-complementary because it enforces authorization at the tool boundary.
+\paragraph{LLM agents and multi-agent systems.}
+The agentic-AI literature increasingly treats language models as components that
+reason, act, use tools, remember, and collaborate. ReAct interleaves reasoning
+and actions against external environments~\citep{yao2022react}; Generative
+Agents use memory, reflection, and planning to simulate interactive
+behavior~\citep{park2023generative}; AutoGen provides a framework for building
+applications from conversable agents~\citep{wu2023autogen}; and SWE-agent shows
+that agent-computer interfaces strongly shape software-engineering agent
+performance~\citep{yang2024sweagent}. Source laundering studies the security
+cost of the same architectural move: once agents communicate through compressed
+natural-language handoffs, facts, instructions, and authority can become
+entangled.
+
+\paragraph{Prompt injection and agent benchmarks.}
+Indirect prompt injection showed that LLM applications can confuse retrieved or
+third-party content with instructions~\citep{greshake2023not}. InjecAgent,
+AgentDojo, Agent Security Bench, ToolEmu, and WASP evaluate prompt-injection and
+agent-security risks in tool-integrated or web-agent settings, often with richer
+task suites than ours~\citep{zhan2024injecagent,debenedetti2024agentdojo,zhang2024asb,ruan2023toolemu,evtimov2025wasp}.
+SLaMBench is intentionally smaller and more diagnostic. Rather than measuring
+whether indirect prompt injection works in general, it asks whether an inter-agent
+handoff increases the effective authority of the same injected instruction.
+
+\paragraph{Multi-agent propagation, memory, and tool metadata.}
+Prompt Infection studies LLM-to-LLM prompt injection that propagates across
+multi-agent systems~\citep{lee2024promptinfection}. AgentPoison and MemoryGraft
+study poisoning of long-term memory, RAG stores, or experience retrieval in
+agents~\citep{chen2024agentpoison,srivastava2025memorygraft}. ToolHijacker and
+recent MCP-focused work show that tool descriptions, tool-server trust, and tool
+metadata are also security-relevant surfaces~\citep{shi2025toolhijacker,metere2026mcpattested}.
+Source laundering differs from these attacks in the object being transformed: the
+attacker does not need to persist in memory, self-replicate, or replace a tool.
+It is enough for an untrusted instruction to be rewritten by a peer in a form
+that downstream agents treat as executable.
+
+\paragraph{Defenses and systems-security framing.}
+Several defenses try to separate data from instructions or improve model-level
+resistance. StruQ uses structured queries to separate prompt and data
+channels~\citep{chen2024struq}; SecAlign uses preference optimization for
+prompt-injection resistance~\citep{chen2024secalign}; PromptArmor sanitizes
+injected content before execution~\citep{shi2025promptarmor}; and WARD studies
+robust guard models for web agents~\citep{cao2026ward}. These defenses are
+valuable, but source laundering suggests that prompt-level separation should be
+paired with runtime authorization. Our TraceGate defense follows a systems
+principle also reflected in OWASP's ``excessive agency'' risk: sensitive side
+effects should be constrained by explicit policy rather than by model compliance
+alone~\citep{owasp2025llmtop10}.
+
+\paragraph{Compositional authorization.}
+The closest classical analogy is the confused deputy, where a privileged program
+is tricked into misusing its authority on behalf of a less privileged
+principal~\citep{hardy1988confused}. Source laundering is a natural-language,
+multi-agent version of that problem. The downstream Executor has tool authority;
+the untrusted artifact does not. If the system fails to preserve the principal on
+whose behalf an instruction is being carried, the Executor may mistake a
+provenance-stripped suggestion for authorization.
 
 \section{Limitations}
 
 SLaMBench is synthetic, so it is safe and controllable but does not estimate
-production incident rates. The main result is strongest for \texttt{gpt-5.4-nano};
-\texttt{gpt-4.1-nano} is already directly vulnerable, and \texttt{gpt-5.5} shows
-low ASR on the tested slice. The extractive c2x condition is a stress condition,
-not a claim that all production Reader agents are written this way. Real systems
-may have richer tool schemas, retries, confirmations, heterogeneous agents,
-stateful memories, and organization-specific policies. TraceGate is deliberately
-simple; production use would require richer provenance tracking, structured
-authority metadata, policy compilation, and task-specific authorization
-definitions. The benchmark emphasizes unauthorized recipients, and broader
-state-changing slices and repeated stochastic sweeps remain future work.
+production incident rates. The main positive result is strongest for
+\texttt{gpt-5.4-nano}; \texttt{gpt-4.1-nano} is already directly vulnerable, and
+\texttt{gpt-5.5} shows low ASR on the tested slice. The extractive c2x condition
+is a stress condition, not a claim that all production Reader agents are written
+this way. Real systems may have richer tool schemas, retries, confirmations,
+heterogeneous agents, stateful memories, and organization-specific policies.
+TraceGate is deliberately simple; production use would require richer provenance
+tracking, structured authority metadata, policy compilation, user confirmation,
+and task-specific authorization definitions. Finally, the benchmark emphasizes
+unauthorized recipients. Broader state-changing slices, larger repeated
+stochastic sweeps, and stronger heterogeneous-agent evaluations remain future
+work.
 
 \section{Conclusion}
 
-Source laundering is a security-relevant failure mode in multi-agent LLM systems.
-The same untrusted instruction can become more effective when transformed into
-an action item by a peer agent. On a scaled multidomain benchmark, extractive
-delegation increases unauthorized-recipient sends relative to direct exposure,
-while a deterministic tool-boundary monitor eliminates observed unauthorized
-sends and preserves injected-task utility. Follow-up ablations show that the
-effect is about provenance-losing composition, not delegation depth alone, and
-that stronger current models may exhibit latent provenance dropout without
-executed attacks. Multi-agent design should treat inter-agent summaries and plans
-as untrusted by default unless authority is explicitly preserved and enforced.
+Source laundering is a security-relevant failure mode in multi-agent LLM systems:
+untrusted artifact text can become more effective when rewritten as a peer-agent
+action item. On SLaMBench, extractive delegation increases unauthorized-recipient
+sends relative to direct exposure for \texttt{gpt-5.4-nano}, while a deterministic
+tool-boundary monitor eliminates observed unauthorized sends and preserves useful
+work. Follow-up ablations show that the effect is about provenance-losing
+composition, not delegation depth alone, and cross-model results show that the
+risk is model-dependent. Multi-agent systems should therefore treat inter-agent
+summaries and plans as untrusted by default unless source and authority are
+explicitly preserved and enforced.
 
 \section*{Ethics Statement}
 
 All experiments use synthetic data, synthetic secrets, synthetic recipients, and
 mock tools with no external side effects. The release package contains synthetic
 tasks, aggregate logs, and deterministic scoring scripts, not live targets or
-real credentials.
+real credentials. The benchmark is intended for defensive evaluation of
+provenance-preserving agent designs and tool-boundary authorization checks.
 
 \bibliographystyle{colm2026_conference}
 \bibliography{refs}
